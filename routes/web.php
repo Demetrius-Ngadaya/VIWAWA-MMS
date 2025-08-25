@@ -1,7 +1,9 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\{AuthController,DashboardController,MemberController,DuesController,ContributionCategoryController,ContributionController,ExpenseController,ReportController};
-
+use App\Http\Controllers\DioceseController;
+use App\Http\Controllers\ParishController;
+use App\Http\Controllers\SCCController;
 
 Route::get('/', fn()=>redirect()->route('login'));
 
@@ -35,6 +37,10 @@ Route::resource('contributions', ContributionController::class)->only(['index','
 // Expenses
 Route::resource('expenses', ExpenseController::class)->only(['index','create','store','destroy']);
 
+//Hierachy
+Route::resource('dioceses', DioceseController::class);
+Route::resource('parishes', ParishController::class);
+Route::resource('sccs', SCCController::class);
 
 // Reports
 Route::get('reports', [ReportController::class,'index'])->name('reports.index');

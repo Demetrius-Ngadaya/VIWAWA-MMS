@@ -12,6 +12,9 @@
     <a class="navbar-brand fw-bold" href="/dashboard">VIWAWA</a>
     @auth
     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <li class="nav-item"><a class="nav-link" href="/dioceses">Jimbo</a></li>
+      <li class="nav-item"><a class="nav-link" href="/parishes">Parokia</a></li>
+      <li class="nav-item"><a class="nav-link" href="/sccs">Vigango</a></li>
       <li class="nav-item"><a class="nav-link" href="/members">Wanachama</a></li>
       <li class="nav-item"><a class="nav-link" href="/dues">Ada</a></li>
       <li class="nav-item"><a class="nav-link" href="/contributions">Michango</a></li>
