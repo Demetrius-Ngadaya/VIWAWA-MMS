@@ -9,3 +9,41 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+/* custom styles */
+body {
+background-color: #f8f9fa;
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+
+.container h1 {
+color: #333;
+}
+
+
+.table th {
+background-color: #00695c;
+color: #fff;
+}
+
+
+.btn-primary {
+background-color: #00695c;
+border-color: #00695c;
+}
+
+
+.btn-primary:hover {
+background-color: #004d40;
+border-color: #004d40;
+}
+
+
+.card {
+box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+
+.list-group-item {
+font-size: 1.1rem;
+}
