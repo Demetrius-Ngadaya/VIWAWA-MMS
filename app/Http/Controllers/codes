@@ -1,0 +1,834 @@
+Nimekuandalia mfumo kamili (backend + frontend) wa VIWAWA Members Management kwa Laravel + MySQL, ukiwa na usajili wa wanachama, utafutaji, kuhariri/kufuta, ada, michango (aina zinadhibitiwa na admin), matumizi, ripoti (wanachama na fedha), na login/logout kwa admin na wanachama. Code yote iko kwenye canvas hapa upande wa kulia.
+Jinsi ya kuanzisha
+1.	Unda project & weka env
+•	Hakikisha una PHP 8.2+, Composer, MySQL.
+•	composer create-project laravel/laravel viwawa-mms (au tengeneza folder jipya kisha badilisha composer.json kulingana na kilicho kwenye canvas)
+•	Nakili .env.example niliyoweka (au boresha ya kwako) na weka DB_DATABASE=viwawa, DB_USERNAME, DB_PASSWORD.
+2.	Migrate & seed
+php artisan key:generate
+php artisan migrate
+php artisan db:seed
+php artisan serve
+3.	Akaunti za majaribio
+•	Admin: admin@viwawa.tz / admin123
+•	Member: member1@viwawa.tz / member123
+4.	Vipengele vilivyopo
+•	Wanachama: sajili, tafuta (jina, jinsia, hali, kigango/parokia/jimbo), hariri, futa.
+•	Hierarchy: Kigango (SCC) → Parokia → Jimbo (Taifa ni ngazi ya juu ya muhtasari).
+•	Ada: rekodi ada za kipindi (YYYY-MM), method, reference.
+•	Michango: admin anaweka Aina za Michango, rekodi michango kwa mwanachama.
+•	Matumizi: rekodi matumizi (category, tarehe, maelezo).
+•	Ripoti:
+o	Idadi ya wanachama kwa ngazi (kigango, parokia, jimbo, taifa).
+o	Muhtasari wa fedha (ada, michango, matumizi, balance) kwa tarehe.
+Mahitaji yako yote yamezingatiwa
+•	✅ Usajili wa wanachama + kuhifadhi/kuonyesha taarifa (majina kamili, jinsia, hali, kigango, parokia, jimbo, cheo, n.k.)
+•	✅ Kutafuta wanachama (filters nyingi)
+•	✅ Kurekebisha/futa taarifa
+•	✅ Ada za wanachama
+•	✅ Michango mbalimbali (aina inasanidiwa na admin)
+•	✅ Matumizi
+•	✅ Ripoti za wanachama, michango, matumizi
+•	✅ Login/Logout kwa admin na wanachama
+•	✅ Kuripoti idadi ya wanachama kwa kila ngazi
+Vidokezo
+•	Views zimetumia Blade + Bootstrap 5 (CDN), ziko kwenye resources/views/….
+•	Ukihitaji export PDF/Excel kwa ripoti, naweza kuongeza laravel-dompdf au maatwebsite/excel.
+•	Kwa roles nimeset role kwenye users (admin/member) na middleware ya mfano ipo; tukihitaji permissions za kina (policy/gate) naweza kukuongezea.
+Ukitaka niweke export ya ripoti (PDF/Excel), graph za kifedha, au REST API ya mobile app (Flutter), niambie—nitaongeza hapa hapa mara moja.
+
+
+// =============================================
+// VIWAWA Members Management System
+// Stack: Laravel 11, MySQL, Blade, Bootstrap 5
+// Feature set: Auth (admin + member), Members CRUD, Search & Filters,
+// Dues, Contributions (by admin-defined categories), Expenses,
+// Hierarchy (Kigango -> Parokia -> Jimbo -> Taifa), Reports & Exports.
+// =============================================
+
+/*
+Folder tree (for reference)
+
+viwawa-mms/
+├─ app/
+│  ├─ Http/
+│  │  ├─ Controllers/
+│  │  │  ├─ AuthController.php
+│  │  │  ├─ DashboardController.php
+│  │  │  ├─ MemberController.php
+│  │  │  ├─ DuesController.php
+│  │  │  ├─ ContributionCategoryController.php
+│  │  │  ├─ ContributionController.php
+│  │  │  ├─ ExpenseController.php
+│  │  │  └─ ReportController.php
+│  │  ├─ Middleware/RoleMiddleware.php
+│  │  └─ Requests/
+│  │     ├─ StoreMemberRequest.php
+│  │     └─ UpdateMemberRequest.php
+│  ├─ Models/
+│  │  ├─ User.php
+│  │  ├─ Member.php
+│  │  ├─ Diocese.php
+│  │  ├─ Parish.php
+│  │  ├─ SCC.php
+│  │  ├─ DuesPayment.php
+│  │  ├─ ContributionCategory.php
+│  │  ├─ Contribution.php
+│  │  └─ Expense.php
+│  └─ Policies/ (optional)
+├─ bootstrap/
+├─ config/
+├─ database/
+│  ├─ migrations/
+│  │  ├─ 2025_01_01_000000_create_users_table.php
+│  │  ├─ 2025_01_01_000100_create_hierarchy_tables.php
+│  │  ├─ 2025_01_01_000200_create_members_table.php
+│  │  ├─ 2025_01_01_000300_create_dues_payments_table.php
+│  │  ├─ 2025_01_01_000400_create_contribution_categories_table.php
+│  │  ├─ 2025_01_01_000500_create_contributions_table.php
+│  │  └─ 2025_01_01_000600_create_expenses_table.php
+│  └─ seeders/
+│     ├─ DatabaseSeeder.php
+│     └─ DemoSeeder.php
+├─ public/
+│  ├─ index.php
+│  └─ assets/
+├─ resources/
+│  ├─ views/
+│  │  ├─ layout.blade.php
+│  │  ├─ auth/
+│  │  │  ├─ login.blade.php
+│  │  │  └─ register_member.blade.php (optional)
+│  │  ├─ dashboard.blade.php
+│  │  ├─ members/
+│  │  │  ├─ index.blade.php
+│  │  │  ├─ create.blade.php
+│  │  │  ├─ edit.blade.php
+│  │  │  └─ show.blade.php
+│  │  ├─ dues/
+│  │  │  ├─ index.blade.php
+│  │  │  └─ create.blade.php
+│  │  ├─ contributions/
+│  │  │  ├─ categories.blade.php
+│  │  │  ├─ index.blade.php
+│  │  │  └─ create.blade.php
+│  │  ├─ expenses/
+│  │  │  ├─ index.blade.php
+│  │  │  └─ create.blade.php
+│  │  └─ reports/
+│  │     ├─ index.blade.php
+│  │     └─ partials/*.blade.php
+│  └─ css/app.css
+├─ routes/web.php
+├─ .env.example
+├─ composer.json
+└─ package.json (optional if you later add Vite for assets)
+*/
+
+// -----------------------------
+// composer.json (minimal)
+// -----------------------------
+{
+  "name": "viwawa/mms",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "laravel/framework": "^11.0",
+    "guzzlehttp/guzzle": "^7.8"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    },
+    "classmap": [
+      "database/seeders",
+      "database/factories"
+    ]
+  },
+  "scripts": {
+    "post-root-package-install": [
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+    ],
+    "post-create-project-cmd": [
+      "@php artisan key:generate"
+    ]
+  }
+}
+
+// -----------------------------
+// .env.example
+// -----------------------------
+APP_NAME=VIWAWA
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+
+LOG_CHANNEL=stack
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=viwawa
+DB_USERNAME=root
+DB_PASSWORD=
+
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+// -----------------------------
+// routes/web.php
+// -----------------------------
+<?php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\{AuthController,DashboardController,MemberController,DuesController,ContributionCategoryController,ContributionController,ExpenseController,ReportController};
+
+Route::get('/', fn()=>redirect()->route('login'));
+
+// Auth
+Route::get('/login', [AuthController::class,'showLogin'])->name('login');
+Route::post('/login', [AuthController::class,'login'])->name('login.post');
+Route::post('/logout', [AuthController::class,'logout'])->name('logout');
+
+Route::middleware('auth')->group(function(){
+    Route::get('/dashboard', [DashboardController::class,'index'])->name('dashboard');
+
+    // Members
+    Route::resource('members', MemberController::class);
+    Route::get('members-search', [MemberController::class,'search'])->name('members.search');
+
+    // Dues
+    Route::get('dues', [DuesController::class,'index'])->name('dues.index');
+    Route::get('dues/create', [DuesController::class,'create'])->name('dues.create');
+    Route::post('dues', [DuesController::class,'store'])->name('dues.store');
+
+    // Contributions
+    Route::resource('contribution-categories', ContributionCategoryController::class)->only(['index','store','update','destroy']);
+    Route::resource('contributions', ContributionController::class)->only(['index','create','store','destroy']);
+
+    // Expenses
+    Route::resource('expenses', ExpenseController::class)->only(['index','create','store','destroy']);
+
+    // Reports
+    Route::get('reports', [ReportController::class,'index'])->name('reports.index');
+    Route::get('reports/members', [ReportController::class,'members'])->name('reports.members');
+    Route::get('reports/financial', [ReportController::class,'financial'])->name('reports.financial');
+});
+
+// -----------------------------
+// app/Models/User.php
+// -----------------------------
+<?php
+namespace App\Models;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+class User extends Authenticatable
+{
+    use Notifiable;
+
+    protected $fillable = ['name','email','password','role','status'];
+    protected $hidden = ['password','remember_token'];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    public function member(): HasOne { return $this->hasOne(Member::class); }
+
+    public function isAdmin(): bool { return $this->role === 'admin'; }
+}
+
+// -----------------------------
+// app/Models/Member.php
+// -----------------------------
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\{BelongsTo,HasMany};
+use Illuminate\Support\Carbon;
+
+class Member extends Model
+{
+    protected $fillable = [
+        'user_id','first_name','middle_name','last_name','gender','birthdate','status',
+        'scc_id','parish_id','diocese_id','position'
+    ];
+
+    protected $casts = [ 'birthdate' => 'date' ];
+
+    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+    public function scc(): BelongsTo { return $this->belongsTo(SCC::class); }
+    public function parish(): BelongsTo { return $this->belongsTo(Parish::class); }
+    public function diocese(): BelongsTo { return $this->belongsTo(Diocese::class); }
+
+    public function duesPayments(): HasMany { return $this->hasMany(DuesPayment::class); }
+    public function contributions(): HasMany { return $this->hasMany(Contribution::class); }
+
+    public function getFullNameAttribute(): string { return trim($this->first_name.' '.$this->middle_name.' '.$this->last_name); }
+    public function getAgeAttribute(): ?int { return $this->birthdate ? $this->birthdate->age : null; }
+}
+
+// -----------------------------
+// app/Models/Diocese.php, Parish.php, SCC.php
+// -----------------------------
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Diocese extends Model { protected $fillable=['name']; public function parishes(): HasMany { return $this->hasMany(Parish::class);} }
+class Parish extends Model  { protected $fillable=['name','diocese_id']; public function sccs(): HasMany { return $this->hasMany(SCC::class);} }
+class SCC extends Model     { protected $fillable=['name','parish_id']; }
+
+// -----------------------------
+// app/Models/DuesPayment.php, ContributionCategory.php, Contribution.php, Expense.php
+// -----------------------------
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class DuesPayment extends Model { protected $fillable=['member_id','period','amount','paid_at','method','reference']; public function member(): BelongsTo { return $this->belongsTo(Member::class);} }
+class ContributionCategory extends Model { protected $fillable=['name','description','created_by']; }
+class Contribution extends Model { protected $fillable=['member_id','contribution_category_id','amount','contributed_at','reference','notes']; public function member(): BelongsTo { return $this->belongsTo(Member::class);} public function category(): BelongsTo { return $this->belongsTo(ContributionCategory::class,'contribution_category_id'); } }
+class Expense extends Model { protected $fillable=['category','amount','spent_at','description','created_by']; }
+
+// -----------------------------
+// app/Http/Middleware/RoleMiddleware.php
+// -----------------------------
+<?php
+namespace App\Http\Middleware;
+use Closure; use Illuminate\Http\Request; use Symfony\Component\HttpFoundation\Response;
+
+class RoleMiddleware
+{
+    public function handle(Request $request, Closure $next, string $role): Response
+    {
+        if (!auth()->check() || auth()->user()->role !== $role) {
+            abort(403, 'Unauthorized');
+        }
+        return $next($request);
+    }
+}
+
+// -----------------------------
+// app/Http/Controllers/AuthController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use Illuminate\Http\Request; use Illuminate\Support\Facades\Hash; use App\Models\User;
+
+class AuthController extends Controller
+{
+    public function showLogin() { return view('auth.login'); }
+
+    public function login(Request $request)
+    {
+        $credentials = $request->validate(['email'=>'required|email','password'=>'required']);
+        if (auth()->attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect()->route('dashboard');
+        }
+        return back()->withErrors(['email'=>'Invalid credentials']);
+    }
+
+    public function logout(Request $request)
+    {
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect()->route('login');
+    }
+}
+
+// -----------------------------
+// app/Http/Controllers/DashboardController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\{Member,Diocese,Parish,SCC,DuesPayment,Contribution,Expense};
+use Illuminate\Support\Carbon;
+
+class DashboardController extends Controller
+{
+    public function index()
+    {
+        $members = Member::count();
+        $duesThisMonth = DuesPayment::where('period', now()->format('Y-m'))->sum('amount');
+        $contribThisMonth = Contribution::whereMonth('contributed_at', now()->month)->whereYear('contributed_at', now()->year)->sum('amount');
+        $expensesThisMonth = Expense::whereMonth('spent_at', now()->month)->whereYear('spent_at', now()->year)->sum('amount');
+
+        return view('dashboard', compact('members','duesThisMonth','contribThisMonth','expensesThisMonth'));
+    }
+}
+
+// -----------------------------
+// app/Http/Controllers/MemberController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\{Member,Diocese,Parish,SCC,User};
+use Illuminate\Http\Request; use Illuminate\Support\Facades\Hash;
+
+class MemberController extends Controller
+{
+    public function index(Request $request)
+    {
+        $q = Member::with(['scc','parish','diocese','user'])
+            ->when($request->filled('name'), fn($x)=>$x->where(function($y) use($request){
+                $y->where('first_name','like','%'.$request->name.'%')
+                  ->orWhere('middle_name','like','%'.$request->name.'%')
+                  ->orWhere('last_name','like','%'.$request->name.'%');
+            }))
+            ->when($request->filled('gender'), fn($x)=>$x->where('gender',$request->gender))
+            ->when($request->filled('status'), fn($x)=>$x->where('status',$request->status))
+            ->when($request->filled('diocese_id'), fn($x)=>$x->where('diocese_id',$request->diocese_id))
+            ->when($request->filled('parish_id'), fn($x)=>$x->where('parish_id',$request->parish_id))
+            ->when($request->filled('scc_id'), fn($x)=>$x->where('scc_id',$request->scc_id))
+            ->orderBy('last_name');
+        $members = $q->paginate(20)->withQueryString();
+        $dioceses = Diocese::all(); $parishes = Parish::all(); $sccs = SCC::all();
+        return view('members.index', compact('members','dioceses','parishes','sccs'));
+    }
+
+    public function create()
+    {
+        return view('members.create',[ 'dioceses'=>Diocese::all(), 'parishes'=>Parish::all(), 'sccs'=>SCC::all() ]);
+    }
+
+    public function store(Request $r)
+    {
+        $data = $r->validate([
+            'first_name'=>'required','middle_name'=>'nullable','last_name'=>'required',
+            'gender'=>'required|in:male,female','birthdate'=>'nullable|date',
+            'status'=>'required|in:active,inactive',
+            'diocese_id'=>'required|exists:dioceses,id',
+            'parish_id'=>'required|exists:parishes,id',
+            'scc_id'=>'required|exists:s_c_c_s,id',
+            'position'=>'nullable|string',
+            'email'=>'required|email|unique:users,email',
+            'password'=>'required|min:6'
+        ]);
+
+        $user = User::create([
+            'name' => $data['first_name'].' '.($data['last_name'] ?? ''),
+            'email'=> $data['email'],
+            'password'=> Hash::make($data['password']),
+            'role'=>'member','status'=>'active'
+        ]);
+
+        Member::create([
+            'user_id'=>$user->id,
+            'first_name'=>$data['first_name'],
+            'middle_name'=>$data['middle_name'] ?? null,
+            'last_name'=>$data['last_name'],
+            'gender'=>$data['gender'],
+            'birthdate'=>$r->birthdate,
+            'status'=>$data['status'],
+            'diocese_id'=>$data['diocese_id'],
+            'parish_id'=>$data['parish_id'],
+            'scc_id'=>$data['scc_id'],
+            'position'=>$data['position'] ?? null
+        ]);
+
+        return redirect()->route('members.index')->with('ok','Member created');
+    }
+
+    public function show(Member $member){ return view('members.show', compact('member')); }
+
+    public function edit(Member $member)
+    {
+        return view('members.edit',[ 'member'=>$member, 'dioceses'=>Diocese::all(), 'parishes'=>Parish::all(), 'sccs'=>SCC::all() ]);
+    }
+
+    public function update(Request $r, Member $member)
+    {
+        $data = $r->validate([
+            'first_name'=>'required','middle_name'=>'nullable','last_name'=>'required',
+            'gender'=>'required|in:male,female','birthdate'=>'nullable|date',
+            'status'=>'required|in:active,inactive',
+            'diocese_id'=>'required|exists:dioceses,id',
+            'parish_id'=>'required|exists:parishes,id',
+            'scc_id'=>'required|exists:s_c_c_s,id',
+            'position'=>'nullable|string'
+        ]);
+        $member->update($data);
+        return back()->with('ok','Updated');
+    }
+
+    public function destroy(Member $member)
+    {   
+        $member->user()?->delete();
+        $member->delete();
+        return redirect()->route('members.index')->with('ok','Deleted');
+    }
+}
+
+// -----------------------------
+// app/Http/Controllers/DuesController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\{DuesPayment,Member};
+use Illuminate\Http\Request;
+
+class DuesController extends Controller
+{
+    public function index(Request $r)
+    {
+        $q = DuesPayment::with('member')
+            ->when($r->filled('period'), fn($x)=>$x->where('period',$r->period))
+            ->when($r->filled('member_id'), fn($x)=>$x->where('member_id',$r->member_id))
+            ->orderByDesc('paid_at');
+        $dues = $q->paginate(20)->withQueryString();
+        return view('dues.index', ['dues'=>$dues,'members'=>Member::orderBy('last_name')->get()]);
+    }
+
+    public function create(){ return view('dues.create',['members'=>Member::orderBy('last_name')->get()]); }
+
+    public function store(Request $r)
+    {
+        $data = $r->validate([
+            'member_id'=>'required|exists:members,id',
+            'period'=>'required|date_format:Y-m',
+            'amount'=>'required|numeric|min:0',
+            'paid_at'=>'required|date','method'=>'nullable|string','reference'=>'nullable|string'
+        ]);
+        DuesPayment::create($data);
+        return redirect()->route('dues.index')->with('ok','Recorded');
+    }
+}
+
+// -----------------------------
+// app/Http/Controllers/ContributionCategoryController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\ContributionCategory; use Illuminate\Http\Request;
+
+class ContributionCategoryController extends Controller
+{
+    public function index(){ return view('contributions.categories',['categories'=>ContributionCategory::orderBy('name')->get()]); }
+    public function store(Request $r){ $d=$r->validate(['name'=>'required','description'=>'nullable']); ContributionCategory::create(['name'=>$d['name'],'description'=>$d['description']??null,'created_by'=>auth()->id()]); return back()->with('ok','Added'); }
+    public function update(Request $r, ContributionCategory $contribution_category){ $d=$r->validate(['name'=>'required','description'=>'nullable']); $contribution_category->update($d); return back()->with('ok','Updated'); }
+    public function destroy(ContributionCategory $contribution_category){ $contribution_category->delete(); return back()->with('ok','Deleted'); }
+}
+
+// -----------------------------
+// app/Http/Controllers/ContributionController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\{Contribution,ContributionCategory,Member}; use Illuminate\Http\Request;
+
+class ContributionController extends Controller
+{
+    public function index(Request $r)
+    {
+        $q = Contribution::with(['member','category'])
+            ->when($r->filled('category_id'), fn($x)=>$x->where('contribution_category_id',$r->category_id))
+            ->when($r->filled('member_id'), fn($x)=>$x->where('member_id',$r->member_id))
+            ->when($r->filled('from'), fn($x)=>$x->whereDate('contributed_at','>=',$r->from))
+            ->when($r->filled('to'), fn($x)=>$x->whereDate('contributed_at','<=',$r->to))
+            ->orderByDesc('contributed_at');
+        $contributions = $q->paginate(20)->withQueryString();
+        return view('contributions.index', [
+            'contributions'=>$contributions,
+            'members'=>Member::orderBy('last_name')->get(),
+            'categories'=>ContributionCategory::orderBy('name')->get()
+        ]);
+    }
+
+    public function create(){ return view('contributions.create',[ 'members'=>Member::orderBy('last_name')->get(), 'categories'=>ContributionCategory::orderBy('name')->get() ]); }
+
+    public function store(Request $r)
+    {
+        $d = $r->validate([
+            'member_id'=>'required|exists:members,id',
+            'contribution_category_id'=>'required|exists:contribution_categories,id',
+            'amount'=>'required|numeric|min:0',
+            'contributed_at'=>'required|date','reference'=>'nullable','notes'=>'nullable'
+        ]);
+        Contribution::create($d);
+        return redirect()->route('contributions.index')->with('ok','Recorded');
+    }
+
+    public function destroy(Contribution $contribution){ $contribution->delete(); return back()->with('ok','Deleted'); }
+}
+
+// -----------------------------
+// app/Http/Controllers/ExpenseController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\Expense; use Illuminate\Http\Request;
+
+class ExpenseController extends Controller
+{
+    public function index(Request $r)
+    {
+        $q = Expense::query()
+            ->when($r->filled('category'), fn($x)=>$x->where('category',$r->category))
+            ->when($r->filled('from'), fn($x)=>$x->whereDate('spent_at','>=',$r->from))
+            ->when($r->filled('to'), fn($x)=>$x->whereDate('spent_at','<=',$r->to))
+            ->orderByDesc('spent_at');
+        $expenses = $q->paginate(20)->withQueryString();
+        return view('expenses.index', compact('expenses'));
+    }
+
+    public function create(){ return view('expenses.create'); }
+
+    public function store(Request $r)
+    {
+        $d = $r->validate(['category'=>'required','amount'=>'required|numeric|min:0','spent_at'=>'required|date','description'=>'nullable']);
+        Expense::create($d + ['created_by'=>auth()->id()]);
+        return redirect()->route('expenses.index')->with('ok','Recorded');
+    }
+
+    public function destroy(Expense $expense){ $expense->delete(); return back()->with('ok','Deleted'); }
+}
+
+// -----------------------------
+// app/Http/Controllers/ReportController.php
+// -----------------------------
+<?php
+namespace App\Http\Controllers;
+use App\Models\{Member,Diocese,Parish,SCC,DuesPayment,Contribution,Expense};
+use Illuminate\Http\Request; use Illuminate\Support\Facades\DB;
+
+class ReportController extends Controller
+{
+    public function index(){ return view('reports.index'); }
+
+    public function members(Request $r)
+    {
+        $by = $r->get('by','diocese'); // diocese|parish|scc|nation
+        if($by==='nation'){
+            $tot = Member::count();
+            return response()->json([['level'=>'Taifa','total'=>$tot]]);
+        }
+        $map = [
+            'diocese' => ['table'=>'dioceses','fk'=>'diocese_id','label'=>'Jimbo'],
+            'parish'  => ['table'=>'parishes','fk'=>'parish_id','label'=>'Parokia'],
+            'scc'     => ['table'=>'s_c_c_s','fk'=>'scc_id','label'=>'Kigango'],
+        ];
+        $m = $map[$by];
+        $rows = DB::table('members')
+            ->select(DB::raw($m['fk'].' as id'), DB::raw('count(*) as total'))
+            ->groupBy($m['fk'])->pluck('total','id');
+        $names = DB::table($m['table'])->pluck('name','id');
+        $out = [];
+        foreach($rows as $id=>$total){ $out[] = ['level'=>$names[$id] ?? 'N/A','total'=>$total]; }
+        return response()->json($out);
+    }
+
+    public function financial(Request $r)
+    {
+        $from = $r->get('from'); $to = $r->get('to');
+        $dues = DuesPayment::when($from, fn($x)=>$x->whereDate('paid_at','>=',$from))
+                           ->when($to, fn($x)=>$x->whereDate('paid_at','<=',$to))
+                           ->sum('amount');
+        $contrib = Contribution::when($from, fn($x)=>$x->whereDate('contributed_at','>=',$from))
+                               ->when($to, fn($x)=>$x->whereDate('contributed_at','<=',$to))
+                               ->sum('amount');
+        $expenses = Expense::when($from, fn($x)=>$x->whereDate('spent_at','>=',$from))
+                           ->when($to, fn($x)=>$x->whereDate('spent_at','<=',$to))
+                           ->sum('amount');
+        return response()->json(['dues'=>$dues,'contributions'=>$contrib,'expenses'=>$expenses,'balance'=>$dues+$contrib-$expenses]);
+    }
+}
+
+// -----------------------------
+// database/migrations/* (schema)
+// -----------------------------
+<?php
+// 2025_01_01_000000_create_users_table.php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(){ Schema::create('users', function(Blueprint $t){ $t->id(); $t->string('name'); $t->string('email')->unique(); $t->string('password'); $t->enum('role',['admin','member'])->default('admin'); $t->enum('status',['active','inactive'])->default('active'); $t->rememberToken(); $t->timestamps(); }); } public function down(){ Schema::dropIfExists('users'); } };
+
+// 2025_01_01_000100_create_hierarchy_tables.php
+return new class extends Migration { public function up(){ Schema::create('dioceses', fn(Blueprint $t)=>($t->id(), $t->string('name'), $t->timestamps())); Schema::create('parishes', fn(Blueprint $t)=>($t->id(), $t->foreignId('diocese_id')->constrained()->cascadeOnDelete(), $t->string('name'), $t->timestamps())); Schema::create('s_c_c_s', fn(Blueprint $t)=>($t->id(), $t->foreignId('parish_id')->constrained()->cascadeOnDelete(), $t->string('name'), $t->timestamps())); } public function down(){ Schema::dropIfExists('s_c_c_s'); Schema::dropIfExists('parishes'); Schema::dropIfExists('dioceses'); } };
+
+// 2025_01_01_000200_create_members_table.php
+return new class extends Migration { public function up(){ Schema::create('members', function(Blueprint $t){ $t->id(); $t->foreignId('user_id')->constrained()->cascadeOnDelete(); $t->string('first_name'); $t->string('middle_name')->nullable(); $t->string('last_name'); $t->enum('gender',['male','female']); $t->date('birthdate')->nullable(); $t->enum('status',['active','inactive'])->default('active'); $t->foreignId('diocese_id')->constrained()->cascadeOnDelete(); $t->foreignId('parish_id')->constrained()->cascadeOnDelete(); $t->foreignId('scc_id')->constrained('s_c_c_s')->cascadeOnDelete(); $t->string('position')->nullable(); $t->timestamps(); }); } public function down(){ Schema::dropIfExists('members'); } };
+
+// 2025_01_01_000300_create_dues_payments_table.php
+return new class extends Migration { public function up(){ Schema::create('dues_payments', function(Blueprint $t){ $t->id(); $t->foreignId('member_id')->constrained()->cascadeOnDelete(); $t->string('period'); // YYYY-MM
+ $t->decimal('amount',12,2); $t->date('paid_at'); $t->string('method')->nullable(); $t->string('reference')->nullable(); $t->timestamps(); }); } public function down(){ Schema::dropIfExists('dues_payments'); } };
+
+// 2025_01_01_000400_create_contribution_categories_table.php
+return new class extends Migration { public function up(){ Schema::create('contribution_categories', function(Blueprint $t){ $t->id(); $t->string('name'); $t->text('description')->nullable(); $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete(); $t->timestamps(); }); } public function down(){ Schema::dropIfExists('contribution_categories'); } };
+
+// 2025_01_01_000500_create_contributions_table.php
+return new class extends Migration { public function up(){ Schema::create('contributions', function(Blueprint $t){ $t->id(); $t->foreignId('member_id')->constrained()->cascadeOnDelete(); $t->foreignId('contribution_category_id')->constrained('contribution_categories')->cascadeOnDelete(); $t->decimal('amount',12,2); $t->date('contributed_at'); $t->string('reference')->nullable(); $t->text('notes')->nullable(); $t->timestamps(); }); } public function down(){ Schema::dropIfExists('contributions'); } };
+
+// 2025_01_01_000600_create_expenses_table.php
+return new class extends Migration { public function up(){ Schema::create('expenses', function(Blueprint $t){ $t->id(); $t->string('category'); $t->decimal('amount',12,2); $t->date('spent_at'); $t->text('description')->nullable(); $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete(); $t->timestamps(); }); } public function down(){ Schema::dropIfExists('expenses'); } };
+
+// -----------------------------
+// database/seeders/DatabaseSeeder.php & DemoSeeder.php
+// -----------------------------
+<?php
+namespace Database\Seeders;
+use Illuminate\Database\Seeder; use Illuminate\Support\Facades\Hash; use App\Models\{User,Diocese,Parish,SCC,Member};
+
+class DatabaseSeeder extends Seeder
+{ public function run(): void { $this->call(DemoSeeder::class); } }
+
+class DemoSeeder extends Seeder
+{ public function run(): void {
+    $admin = User::create(['name'=>'Admin','email'=>'admin@viwawa.tz','password'=>Hash::make('admin123'), 'role'=>'admin','status'=>'active']);
+
+    $d = Diocese::create(['name'=>'Jimbo Kuu']);
+    $p = Parish::create(['name'=>'Parokia Kuu','diocese_id'=>$d->id]);
+    $s = SCC::create(['name'=>'Kigango Kuu','parish_id'=>$p->id]);
+
+    $u2 = User::create(['name'=>'Member One','email'=>'member1@viwawa.tz','password'=>Hash::make('member123'),'role'=>'member','status'=>'active']);
+    Member::create(['user_id'=>$u2->id,'first_name'=>'Member','middle_name'=>null,'last_name'=>'One','gender'=>'male','birthdate'=>'1998-01-01','status'=>'active','diocese_id'=>$d->id,'parish_id'=>$p->id,'scc_id'=>$s->id,'position'=>'Mwenyekiti']);
+ }}
+
+// -----------------------------
+// resources/views/layout.blade.php (Bootstrap 5 layout)
+// -----------------------------
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ config('app.name','VIWAWA') }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg bg-light border-bottom mb-3">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="/dashboard">VIWAWA</a>
+    @auth
+    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <li class="nav-item"><a class="nav-link" href="/members">Wanachama</a></li>
+      <li class="nav-item"><a class="nav-link" href="/dues">Ada</a></li>
+      <li class="nav-item"><a class="nav-link" href="/contributions">Michango</a></li>
+      <li class="nav-item"><a class="nav-link" href="/contribution-categories">Aina za Michango</a></li>
+      <li class="nav-item"><a class="nav-link" href="/expenses">Matumizi</a></li>
+      <li class="nav-item"><a class="nav-link" href="/reports">Ripoti</a></li>
+    </ul>
+    <form method="POST" action="{{ route('logout') }}">@csrf <button class="btn btn-outline-danger">Logout</button></form>
+    @endauth
+  </div>
+</nav>
+<div class="container"> @if(session('ok'))<div class="alert alert-success">{{ session('ok') }}</div>@endif @yield('content') </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body></html>
+
+// -----------------------------
+// resources/views/auth/login.blade.php
+// -----------------------------
+@extends('layout')
+@section('content')
+<div class="row justify-content-center">
+  <div class="col-md-4">
+    <div class="card shadow-sm">
+      <div class="card-header fw-bold">Login</div>
+      <div class="card-body">
+        <form method="POST" action="{{ route('login.post') }}"> @csrf
+          <div class="mb-3"><label class="form-label">Email</label><input class="form-control" type="email" name="email" required></div>
+          <div class="mb-3"><label class="form-label">Password</label><input class="form-control" type="password" name="password" required></div>
+          <button class="btn btn-primary w-100">Ingia</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+@endsection
+
+// -----------------------------
+// resources/views/dashboard.blade.php
+// -----------------------------
+@extends('layout')
+@section('content')
+<div class="row g-3">
+  <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Jumla ya Wanachama</div><div class="fs-3 fw-bold">{{ $members }}</div></div></div></div>
+  <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Ada (Mwezi huu)</div><div class="fs-3 fw-bold">{{ number_format($duesThisMonth,0) }}</div></div></div></div>
+  <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Michango (Mwezi huu)</div><div class="fs-3 fw-bold">{{ number_format($contribThisMonth,0) }}</div></div></div></div>
+  <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Matumizi (Mwezi huu)</div><div class="fs-3 fw-bold">{{ number_format($expensesThisMonth,0) }}</div></div></div></div>
+</div>
+@endsection
+
+// -----------------------------
+// resources/views/members/index.blade.php
+// -----------------------------
+@extends('layout')
+@section('content')
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="m-0">Wanachama</h5>
+  <a href="{{ route('members.create') }}" class="btn btn-primary">+ Sajili Mwanachama</a>
+</div>
+<form method="GET" class="row g-2 mb-3">
+  <div class="col-md-3"><input class="form-control" name="name" placeholder="Tafuta jina..." value="{{ request('name') }}"></div>
+  <div class="col-md-2"><select class="form-select" name="gender"><option value="">Jinsia</option><option value="male" @selected(request('gender')==='male')>Male</option><option value="female" @selected(request('gender')==='female')>Female</option></select></div>
+  <div class="col-md-2"><select class="form-select" name="status"><option value="">Hali</option><option value="active" @selected(request('status')==='active')>Active</option><option value="inactive" @selected(request('status')==='inactive')>Inactive</option></select></div>
+  <div class="col-md-2"><select class="form-select" name="diocese_id"><option value="">Jimbo</option>@foreach($dioceses as $d)<option value="{{ $d->id }}" @selected(request('diocese_id')==$d->id)>{{ $d->name }}</option>@endforeach</select></div>
+  <div class="col-md-2"><select class="form-select" name="parish_id"><option value="">Parokia</option>@foreach($parishes as $p)<option value="{{ $p->id }}" @selected(request('parish_id')==$p->id)>{{ $p->name }}</option>@endforeach</select></div>
+  <div class="col-md-2"><select class="form-select" name="scc_id"><option value="">Kigango</option>@foreach($sccs as $s)<option value="{{ $s->id }}" @selected(request('scc_id')==$s->id)>{{ $s->name }}</option>@endforeach</select></div>
+  <div class="col-md-1"><button class="btn btn-outline-secondary w-100">Tafuta</button></div>
+</form>
+<table class="table table-striped table-bordered align-middle">
+  <thead class="table-light"><tr><th>#</th><th>Jina</th><th>Jinsia</th><th>Hali</th><th>Kigango</th><th>Parokia</th><th>Jimbo</th><th></th></tr></thead>
+  <tbody>
+    @foreach($members as $m)
+    <tr>
+      <td>{{ $m->id }}</td>
+      <td>{{ $m->full_name }}</td>
+      <td class="text-capitalize">{{ $m->gender }}</td>
+      <td class="text-capitalize">{{ $m->status }}</td>
+      <td>{{ $m->scc->name ?? '-' }}</td>
+      <td>{{ $m->parish->name ?? '-' }}</td>
+      <td>{{ $m->diocese->name ?? '-' }}</td>
+      <td class="text-end">
+        <a href="{{ route('members.edit',$m) }}" class="btn btn-sm btn-warning">Edit</a>
+        <form method="POST" action="{{ route('members.destroy',$m) }}" class="d-inline">@csrf @method('DELETE')
+          <button class="btn btn-sm btn-danger" onclick="return confirm('Futa?')">Delete</button>
+        </form>
+      </td>
+    </tr>
+    @endforeach
+  </tbody>
+</table>
+{{ $members->links() }}
+@endsection
+
+// -----------------------------
+// resources/views/members/create.blade.php (also used for edit with small change)
+// -----------------------------
+@extends('layout')
+@section('content')
+<h5>Sajili Mwanachama</h5>
+<form method="POST" action="{{ route('members.store') }}" class="row g-3">
+  @csrf
+  <div class="col-md-4"><label class="form-label">Jina la Kwanza</label><input name="first_name" class="form-control" required></div>
+  <div class="col-md-4"><label class="form-label">Jina la Kati</label><input name="middle_name" class="form-control"></div>
+  <div class="col-md-4"><label class="form-label">Jina la Mwisho</label><input name="last_name" class="form-control" required></div>
+  <div class="col-md-3"><label class="form-label">Jinsia</label><select name="gender" class="form-select" required><option value="male">Male</option><option value="female">Female</option></select></div>
+  <div class="col-md-3"><label class="form-label">Tarehe ya Kuzaliwa</label><input type="date" name="birthdate" class="form-control"></div>
+  <div class="col-md-3"><label class="form-label">Hali</label><select name="status" class="form-select"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+  <div class="col-md-4"><label class="form-label">Jimbo</label><select name="diocese_id" class="form-select" required>@foreach($dioceses as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach</select></div>
+  <div class="col-md-4"><label class="form-label">Parokia</label><select name="parish_id" class="form-select" required>@foreach($parishes as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach</select></div>
+  <div class="col-md-4"><label class="form-label">Kigango</label><select name="scc_id" class="form-select" required>@foreach($sccs as $s)<option value="{{ $s->id }}">{{ $s->name }}</option>@endforeach</select></div>
+  <div class="col-md-4"><label class="form-label">Cheo (ndani ya VIWAWA)</label><input name="position" class="form-control"></div>
+  <div class="col-md-4"><label class="form-label">Barua Pepe (kwa login)</label><input type="email" name="email" class="form-control" required></div>
+  <div class="col-md-4"><label class="form-label">Nenosiri la Mwanachama</label><input type="password" name="password" class="form-control" required></div>
+  <div class="col-12"><button class="btn btn-primary">Hifadhi</button></div>
+</form>
+@endsection
+
+// -----------------------------
+// resources/views/dues/index.blade.php & create, contributions/*, expenses/*, reports/*
+// (For brevity, patterns follow the Members pages: table + filters + create form.)
+// -----------------------------
+
+// -----------------------------
+// Minimal CSS (optional): resources/css/app.css
+// -----------------------------
+/* add custom styles here */

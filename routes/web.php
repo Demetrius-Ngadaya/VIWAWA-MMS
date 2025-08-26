@@ -30,9 +30,16 @@ Route::post('dues', [DuesController::class,'store'])->name('dues.store');
 
 
 // Contributions
-Route::resource('contribution-categories', ContributionCategoryController::class)->only(['index','store','update','destroy']);
-Route::resource('contributions', ContributionController::class)->only(['index','create','store','destroy']);
 
+Route::resource('contributions', ContributionController::class);
+
+
+//  contribution-categories ,the route for all CRUD operations:
+Route::resource('contribution-categories', ContributionCategoryController::class);
+
+// Add this route for member contribution summary
+Route::get('contributions/member-summary/{memberId}/{categoryId}', [ContributionController::class, 'getMemberSummary'])
+    ->name('contributions.member-summary');
 
 // Expenses
 Route::resource('expenses', ExpenseController::class)->only(['index','create','store','destroy']);

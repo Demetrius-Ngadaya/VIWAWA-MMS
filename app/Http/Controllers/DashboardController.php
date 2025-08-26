@@ -2,7 +2,7 @@
 namespace App\Http\Controllers;
 use App\Models\Member;
 
-use App\Models\{Diocese,Parish,SCC,DuesPayment,Contribution,Expense};
+use App\Models\{Diocese,Parish,SCC,Contribution,Expense};
 use Illuminate\Support\Carbon;
 
 use Illuminate\Http\Request;
@@ -17,11 +17,11 @@ class DashboardController extends Controller
         public function index()
     {
         $members = Member::count();
-        $duesThisMonth = DuesPayment::where('period', now()->format('Y-m'))->sum('amount');
-        $contribThisMonth = Contribution::whereMonth('contributed_at', now()->month)->whereYear('contributed_at', now()->year)->sum('amount');
+        $contributionsThisMonth = Contribution::where('created_at', now()->format('Y-m'))->sum('paid_amount');
+        $contribThisMonth = Contribution::whereMonth('contributed_at', now()->month)->whereYear('contributed_at', now()->year)->sum('paid_amount');
         $expensesThisMonth = Expense::whereMonth('spent_at', now()->month)->whereYear('spent_at', now()->year)->sum('amount');
 
-        return view('dashboard', compact('members','duesThisMonth','contribThisMonth','expensesThisMonth'));
+        return view('dashboard', compact('members','contributionsThisMonth','contribThisMonth','expensesThisMonth'));
     }
 
     /**
