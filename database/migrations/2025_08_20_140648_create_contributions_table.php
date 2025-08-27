@@ -15,7 +15,7 @@ return new class extends Migration
             $table->decimal('paid_amount', 12, 2)->default(0);
             $table->decimal('remaining_amount', 12, 2)->default(0);
             $table->decimal('exceeded_amount', 12, 2)->default(0);
-            $table->enum('statu s', ['hajamaliza', 'amemaliza', 'incomplete'])->default('incomplete');
+            $table->enum('status', ['hajamaliza', 'amemaliza', 'incomplete'])->default('incomplete');
             $table->foreignId('recorded_by')->constrained('users')->cascadeOnDelete();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();

@@ -6,6 +6,7 @@ use App\Models\{Contribution, ContributionCategory, Member};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+
 class ContributionController extends Controller
 {
     public function index(Request $request)
@@ -35,53 +36,53 @@ class ContributionController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'member_id' => 'required|exists:members,id',
-            'contribution_category_id' => 'required|exists:contribution_categories,id',
-            'paid_amount' => 'required|numeric|min:0',
-            'contributed_at' => 'required|date',
-            'reference' => 'nullable|string|max:255',
-            'notes' => 'nullable|string|max:1000'
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'member_id' => 'required|exists:members,id',
+        'contribution_category_id' => 'required|exists:contribution_categories,id',
+        'paid_amount' => 'required|numeric|min:0',
+        'contributed_at' => 'required|date',
+        'reference' => 'nullable|string|max:255',
+        'notes' => 'nullable|string|max:1000'
+    ]);
+
+    try {
+        DB::beginTransaction();
+
+        // Get the required contribution amount
+        $category = ContributionCategory::findOrFail($validated['contribution_category_id']);
+        $requiredAmount = $category->contribution_amount;
+
+        // Calculate payment status using the model method
+        $contribution = new Contribution();
+        $paymentStatus = $contribution->calculatePaymentStatus($validated['paid_amount'], $requiredAmount);
+
+        // Create the contribution
+        Contribution::create([
+            'member_id' => $validated['member_id'],
+            'contribution_category_id' => $validated['contribution_category_id'],
+            'paid_amount' => $validated['paid_amount'],
+            'remaining_amount' => $paymentStatus['remaining_amount'],
+            'exceeded_amount' => $paymentStatus['exceeded_amount'],
+            'status' => $paymentStatus['status'],
+            'recorded_by' => auth()->id(),
+            'created_by' => auth()->id(),
+            'contributed_at' => $validated['contributed_at'],
+            'reference' => $validated['reference'] ?? null,
+            'notes' => $validated['notes'] ?? null
         ]);
 
-        try {
-            DB::beginTransaction();
+        DB::commit();
 
-            // Get the required contribution amount
-            $category = ContributionCategory::findOrFail($validated['contribution_category_id']);
-            $requiredAmount = $category->contribution_amount;
+        return redirect()->route('contributions.index')
+            ->with('success', 'Contribution recorded successfully!');
 
-            // Calculate payment status
-            $contribution = new Contribution();
-            $paymentStatus = $contribution->calculatePaymentStatus($validated['paid_amount'], $requiredAmount);
-
-            // Create the contribution
-            Contribution::create([
-                'member_id' => $validated['member_id'],
-                'contribution_category_id' => $validated['contribution_category_id'],
-                'paid_amount' => $validated['paid_amount'],
-                'remaining_amount' => $paymentStatus['remaining_amount'],
-                'exceeded_amount' => $paymentStatus['exceeded_amount'],
-                'status' => $paymentStatus['status'],
-                'recorded_by' => auth()->id(),
-                'created_by' => auth()->id(),
-                'contributed_at' => $validated['contributed_at'],
-                'reference' => $validated['reference'] ?? null,
-                'notes' => $validated['notes'] ?? null
-            ]);
-
-            DB::commit();
-
-            return redirect()->route('contributions.index')
-                ->with('success', 'Contribution recorded successfully!');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withInput()->with('error', 'Error recording contribution: ' . $e->getMessage());
-        }
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->withInput()->with('error', 'Error recording contribution: ' . $e->getMessage());
     }
+}
 
     public function show(Contribution $contribution)
     {
