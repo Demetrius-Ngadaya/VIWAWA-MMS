@@ -19,6 +19,7 @@
       <li class="nav-item"><a class="nav-link" href="/dues">Ada</a></li>
       <li class="nav-item"><a class="nav-link" href="/contributions">Michango</a></li>
       <li class="nav-item"><a class="nav-link" href="/contribution-categories">Aina za Michango</a></li>
+      <li class="nav-item"><a class="nav-link" href="/due-categories">Aina za Ada</a></li>
       <li class="nav-item"><a class="nav-link" href="/expenses">Matumizi</a></li>
       <li class="nav-item"><a class="nav-link" href="/reports">Ripoti</a></li>
     </ul>

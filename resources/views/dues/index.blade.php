@@ -2,8 +2,8 @@
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h5>Manage Contributions</h5>
-    <a href="{{ route('dues.create') }}" class="btn btn-primary">Record New Contribution</a>
+    <h5>Manage Due Payments</h5>
+    <a href="{{ route('dues.create') }}" class="btn btn-primary">Record New Due Payment</a>
 </div>
 
 <!-- Search Form -->
@@ -21,7 +21,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Category</label>
                 <select name="category_id" class="form-select">
                     <option value="">All Categories</option>
@@ -33,21 +33,30 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="hajamaliza" {{ request('status') == 'hajamaliza' ? 'selected' : '' }}>Hajamaliza</option>
+                    <option value="amemaliza" {{ request('status') == 'amemaliza' ? 'selected' : '' }}>Amemaliza</option>
+                    <option value="incomplete" {{ request('status') == 'incomplete' ? 'selected' : '' }}>Incomplete</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label">From Date</label>
-                <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+                <input type="date" name="from" class="form-control" value="{{ request('from') }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label">To Date</label>
-                <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+                <input type="date" name="to" class="form-control" value="{{ request('to') }}">
             </div>
-            <div class="col-md-2 d-flex align-items-end">
+            <div class="col-md-1 d-flex align-items-end">
                 <button type="submit" class="btn btn-outline-primary">Filter</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Contributions Table -->
+<!-- Due Payments Table -->
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
@@ -57,23 +66,33 @@
                         <th>Date</th>
                         <th>Member</th>
                         <th>Category</th>
-                        <th>Amount</th>
-                        <th>Received By</th>
+                        <th>Paid Amount</th>
+                        <th>Status</th>
+                        <th>Remaining</th>
+                        <th>Exceeded</th>
+                        <th>Recorded By</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($contributions as $contribution)
+                    @foreach($duesPayments as $payment)
                     <tr>
-                        <td>{{ $contribution->date->format('M d, Y') }}</td>
-                        <td>{{ $contribution->member->full_name }}</td>
-                        <td>{{ $contribution->category->name }}</td>
-                        <td>{{ number_format($contribution->amount, 2) }}</td>
-                        <td>{{ $contribution->receivedBy->name }}</td>
+                        <td>{{ $payment->paid_at->format('M d, Y') }}</td>
+                        <td>{{ $payment->member->full_name }}</td>
+                        <td>{{ $payment->category->name }}</td>
+                        <td>TZS {{ number_format($payment->paid_amount, 2) }}</td>
                         <td>
-                            <a href="{{ route('dues.show', $contribution) }}" class="btn btn-sm btn-info">View</a>
-                            <a href="{{ route('dues.edit', $contribution) }}" class="btn btn-sm btn-warning">Edit</a>
-                            <form action="{{ route('dues.destroy', $contribution) }}" method="POST" class="d-inline">
+                            <span class="badge bg-{{ $payment->status == 'amemaliza' ? 'success' : ($payment->status == 'hajamaliza' ? 'warning' : 'secondary') }}">
+                                {{ ucfirst($payment->status) }}
+                            </span>
+                        </td>
+                        <td>TZS {{ number_format($payment->remaining_amount, 2) }}</td>
+                        <td>TZS {{ number_format($payment->exceeded_amount, 2) }}</td>
+                        <td>{{ $payment->recordedBy->name }}</td>
+                        <td>
+                            <a href="{{ route('dues.show', $payment) }}" class="btn btn-sm btn-info">View</a>
+                            <a href="{{ route('dues.edit', $payment) }}" class="btn btn-sm btn-warning">Edit</a>
+                            <form action="{{ route('dues.destroy', $payment) }}" method="POST" class="d-inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
@@ -85,7 +104,7 @@
             </table>
         </div>
         
-        {{ $contributions->links() }}
+        {{ $duesPayments->links() }}
     </div>
 </div>
 @endsection

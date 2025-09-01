@@ -1,6 +1,6 @@
 <?php
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\{AuthController,DashboardController,MemberController,DuesController,ContributionCategoryController,ContributionController,ExpenseController,ReportController};
+use App\Http\Controllers\{AuthController,DashboardController,MemberController,DuesController,DueCategoryController,DuesPaymentController,ContributionCategoryController,ContributionController,ExpenseController,ReportController};
 use App\Http\Controllers\DioceseController;
 use App\Http\Controllers\ParishController;
 use App\Http\Controllers\SCCController;
@@ -23,12 +23,13 @@ Route::resource('members', MemberController::class);
 Route::get('members-search', [MemberController::class,'search'])->name('members.search');
 
 
-// Dues
-Route::get('dues', [DuesController::class,'index'])->name('dues.index');
-Route::get('dues/create', [DuesController::class,'create'])->name('dues.create');
-Route::post('dues', [DuesController::class,'store'])->name('dues.store');
 
+// Due Categories
+Route::resource('due-categories', DueCategoryController::class);
 
+// Due Payments
+Route::resource('dues', DuesPaymentController::class);
+Route::get('dues/member-summary/{memberId}/{categoryId}', [DuesPaymentController::class, 'getMemberSummary']);
 // Contributions
 
 Route::resource('contributions', ContributionController::class);
@@ -48,6 +49,7 @@ Route::resource('expenses', ExpenseController::class)->only(['index','create','s
 Route::resource('dioceses', DioceseController::class);
 Route::resource('parishes', ParishController::class);
 Route::resource('sccs', SCCController::class);
+
 
 // Reports
 Route::get('reports', [ReportController::class,'index'])->name('reports.index');
